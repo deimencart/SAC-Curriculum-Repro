@@ -1,0 +1,294 @@
+<mxfile host="Electron" agent="Antigravity Agent">
+  <diagram id="sac_architecture_phase5" name="SAC Residual Architecture Phase 5">
+    <mxGraphModel dx="3214" dy="841" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1400" math="1" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="100" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#1E293B;fontColor=#F8FAFC;fontStyle=1;fontSize=18;align=center;verticalAlign=middle;shadow=1;strokeWidth=2;" value="&lt;b&gt;ARQUITECTURA SAC RESIDUAL &amp; CURRICULUM RL — FASE 5&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12px;font-weight:normal;color:#94A3B8;&#39;&gt;Doblado Dinámico de Ropa en Génesis World (XPBD) | Soft Actor-Critic Continuo (22D Obs → 3D Residual Act) | Gestor de Fricción Adaptativo&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="1680" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="1000" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;verticalAlign=top;align=center;fillColor=#F0FDFA;strokeColor=#0D9488;strokeWidth=2;fontStyle=1;fontSize=14;fontColor=#0F766E;spacingTop=12;dashed=0;shadow=0;" value="&lt;b&gt;SUBSISTEMA 1: ENTORNO GYMNASIUM &amp; FÍSICA GENESIS XPBD&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;font-weight:normal;color:#0F766E;&#39;&gt;DynamicFoldingEnv &amp; ClothGenesisBackend&lt;/span&gt;" vertex="1">
+          <mxGeometry height="920" width="480" x="40" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="1101" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#CCFBF1;strokeColor=#0D9488;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Simulador Físico: Genesis World (v1.4.0 / 0.3.13)&lt;/b&gt;&lt;br&gt;• Backend: GPU (Taichi JIT / CUDA)&lt;br&gt;• Solver de Partículas: XPBD (&lt;tt&gt;gs.materials.PBD.Cloth&lt;/tt&gt;)&lt;br&gt;• Timestep: &amp;Delta;t = 0.004 s (250 Hz) | Substeps: 6 &amp;ndash; 12&lt;br&gt;• Iteraciones: Stretch=10, Bending=10 | Tamaño partícula = 8 mm&lt;br&gt;• Entornos Paralelos: N&lt;sub&gt;envs&lt;/sub&gt; = 4 (Grilla 2x2, &gt;120 FPS combinados)" vertex="1">
+          <mxGeometry height="95" width="440" x="60" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="1102" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#14B8A6;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Prenda Deformable &amp; Puntos Semánticos&lt;/b&gt;&lt;br&gt;• Malla OBJ: Pantalón FoldNet (430) / ClothesNet (PS_004)&lt;br&gt;• Topología: ~4.500 partículas deformables XPBD&lt;br&gt;• 7 Keypoints Anatómicos Canónicos:&lt;br&gt;  &lt;tt&gt;[l_corner, r_corner, crotch, top_ctr_f, top_ctr_b, l_leg_o, r_leg_o]&lt;/tt&gt;&lt;br&gt;• Coordenadas Métricas 3D en Sistema de Coordenadas Local del Entorno" vertex="1">
+          <mxGeometry height="85" width="440" x="60" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="1103" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Extractor del Vector de Observación (s&lt;sub&gt;t&lt;/sub&gt; &amp;isin; &amp;real;&lt;sup&gt;22&lt;/sup&gt;)&lt;/b&gt;&lt;br&gt;• 7 Puntos Clave &amp;times; Posición 3D (x, y, z) = &lt;b&gt;21 dimensiones&lt;/b&gt;&lt;br&gt;• Progreso Temporal Normalizado: &lt;b&gt;&amp;tau; = t / T &amp;isin; [0.0, 1.0]&lt;/b&gt; (1 dimensión)&lt;br&gt;• Dimensión Total: &lt;b&gt;s&lt;sub&gt;t&lt;/sub&gt; = [p&lt;sub&gt;1&lt;/sub&gt;, ..., p&lt;sub&gt;7&lt;/sub&gt;, &amp;tau;] &amp;isin; &amp;real;&lt;sup&gt;22&lt;/sup&gt;&lt;/b&gt; (o [B, 22] en multi-env)&lt;br&gt;• Validación: Cero NaNs, coordenadas locales invariantes al offset de grilla" vertex="1">
+          <mxGeometry height="85" width="440" x="60" y="395" as="geometry" />
+        </mxCell>
+        <mxCell id="1104" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Generador de Trayectoria Nominal de Bézier (C&lt;sup&gt;2&lt;/sup&gt; Quintic)&lt;/b&gt;&lt;br&gt;• Ley Temporal de Mínimo Tirón: s(&amp;tau;) = 10&amp;tau;&lt;sup&gt;3&lt;/sup&gt; - 15&amp;tau;&lt;sup&gt;4&lt;/sup&gt; + 6&amp;tau;&lt;sup&gt;5&lt;/sup&gt;&lt;br&gt;• Elevación Parabólica: &amp;Aacute;pice h = h&lt;sub&gt;ratio&lt;/sub&gt; &amp;middot; ||P&lt;sub&gt;target&lt;/sub&gt; - P&lt;sub&gt;0&lt;/sub&gt;|| (h&lt;sub&gt;ratio&lt;/sub&gt;=0.65)&lt;br&gt;• Posición Analítica Suave: &lt;b&gt;x&lt;sub&gt;nominal&lt;/sub&gt;(&amp;tau;) &amp;isin; &amp;real;&lt;sup&gt;3&lt;/sup&gt;&lt;/b&gt;&lt;br&gt;• Propósito: Guiar el doblado macro libre de inestabilidades cinemáticas" vertex="1">
+          <mxGeometry height="85" width="440" x="60" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="1105" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Mezclador de Acción Residual (Fusión Cinemática)&lt;/b&gt;&lt;br&gt;• Acción de la Política SAC: &lt;b&gt;a&lt;sub&gt;t&lt;/sub&gt; &amp;isin; [-0.03, +0.03] m&lt;/b&gt; (&amp;plusmn;3 cm)&lt;br&gt;• Comando Cinemático Final: &lt;b&gt;x&lt;sub&gt;cmd&lt;/sub&gt; = x&lt;sub&gt;nominal&lt;/sub&gt;(&amp;tau;) + a&lt;sub&gt;t&lt;/sub&gt;&lt;/b&gt;&lt;br&gt;• Clamping de Seguridad: np.clip(a&lt;sub&gt;t&lt;/sub&gt;, -0.03, 0.03)&lt;br&gt;• Mecanismo de Control: Desplazamiento rígido acoplado a parche PBD" vertex="1">
+          <mxGeometry height="80" width="440" x="60" y="625" as="geometry" />
+        </mxCell>
+        <mxCell id="1106" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0D9488;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Paso de Integración Cinemática (ClothGenesisBackend)&lt;/b&gt;&lt;br&gt;• Parche activo anclado: partículas fijas r&lt;sub&gt;grasp&lt;/sub&gt; = 20 mm&lt;br&gt;• Actualización continua C&lt;sup&gt;1&lt;/sup&gt;: set_particles_pos(x&lt;sub&gt;cmd&lt;/sub&gt; + offset)&lt;br&gt;• Integración XPBD: scene.step() &amp;times; substeps (sin violar tensiones)" vertex="1">
+          <mxGeometry height="65" width="440" x="60" y="735" as="geometry" />
+        </mxCell>
+        <mxCell id="1107" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#059669;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Función de Recompensa Cóncava (Li et al., 2025)&lt;/b&gt;&lt;br&gt;• Distancia Euclídea: d = ||p&lt;sub&gt;activo&lt;/sub&gt; - p&lt;sub&gt;target&lt;/sub&gt;||&lt;br&gt;• Normalización: d&lt;sub&gt;norm&lt;/sub&gt; = d / (&amp;delta;&lt;sub&gt;threshold&lt;/sub&gt; + 10&lt;sup&gt;-7&lt;/sup&gt;), con &amp;delta; = 0.05 m&lt;br&gt;• &lt;b&gt;R(s, a) = 1.0 - (d&lt;sub&gt;norm&lt;/sub&gt;)&lt;sup&gt;0.4&lt;/sup&gt;&lt;/b&gt; &amp;nbsp;si d &amp;le; &amp;delta;, sino &lt;b&gt;-1.0&lt;/b&gt;&lt;br&gt;• Término: Truncado a horizonte H=20 pasos | Release &amp; Settle: 40 steps" vertex="1">
+          <mxGeometry height="80" width="440" x="60" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="1201" edge="1" parent="1" source="1101" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="1102" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1202" edge="1" parent="1" source="1102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="1103" value="Lectura de vértices">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1203" edge="1" parent="1" source="1103" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8B5CF6;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="1104" value="Progreso &amp;tau;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1204" edge="1" parent="1" source="1104" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8B5CF6;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="1105" value="x_nominal(&amp;tau;)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1205" edge="1" parent="1" source="1105" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EF4444;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="1106" value="x_cmd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1206" edge="1" parent="1" source="1106" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="1107" value="PBD Step">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2000" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;verticalAlign=top;align=center;fillColor=#FAF5FF;strokeColor=#9333EA;strokeWidth=2;fontStyle=1;fontSize=14;fontColor=#6B21A8;spacingTop=12;dashed=0;shadow=0;" value="&lt;b&gt;SUBSISTEMA 2: ACTOR GAUSSIANO CON COMPRESIÓN TANH (&amp;pi;&lt;sub&gt;&amp;phi;&lt;/sub&gt;)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;font-weight:normal;color:#6B21A8;&#39;&gt;GaussianActor &amp;middot; sac_policy.py&lt;/span&gt;" vertex="1">
+          <mxGeometry height="440" width="520" x="550" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="2101" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Entrada de Estado&lt;/b&gt;: s&lt;sub&gt;t&lt;/sub&gt; &amp;isin; &amp;real;&lt;sup&gt;22&lt;/sup&gt; (7 keypoints &amp;times; 3D + &amp;tau;)" vertex="1">
+          <mxGeometry height="35" width="480" x="570" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="2102" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9333EA;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Tronco Compartido (MLP de 2 Capas Ocultas)&lt;/b&gt;&lt;br&gt;• Linear(in_features=22, out_features=256) &amp;rarr; ReLU()&lt;br&gt;• Linear(in_features=256, out_features=256) &amp;rarr; ReLU()&lt;br&gt;• Representación Latente: h&lt;sub&gt;actor&lt;/sub&gt; &amp;isin; &amp;real;&lt;sup&gt;256&lt;/sup&gt;" vertex="1">
+          <mxGeometry height="60" width="480" x="570" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="2103" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#7C3AED;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Cabeza Media (&amp;mu;)&lt;/b&gt;&lt;br&gt;• Linear(256, 3)&lt;br&gt;• Vector &amp;mu; &amp;isin; &amp;real;&lt;sup&gt;3&lt;/sup&gt;" vertex="1">
+          <mxGeometry height="50" width="230" x="570" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="2104" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#7C3AED;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Cabeza Log-Std (log &amp;sigma;)&lt;/b&gt;&lt;br&gt;• Linear(256, 3) &amp;rarr; clamp([-20, 2])&lt;br&gt;• &amp;sigma; = exp(log &amp;sigma;) &amp;isin; &amp;real;&lt;sup&gt;3&lt;/sup&gt;" vertex="1">
+          <mxGeometry height="50" width="230" x="820" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="2105" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#6D28D9;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Truco de Reparametrización Gaussiana&lt;/b&gt;&lt;br&gt;u = &amp;mu; + &amp;sigma; &amp;odot; &amp;epsilon;, &amp;nbsp;&amp;nbsp;&amp;epsilon; ~ &amp;Nu;(0, I) &amp;isin; &amp;real;&lt;sup&gt;3&lt;/sup&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#6B21A8;&#39;&gt;Permite retropropagar gradientes &amp;nabla;&lt;sub&gt;&amp;phi;&lt;/sub&gt; a través del muestreo&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="480" x="570" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="2106" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Compresión Tanh &amp; Corrección de Densidad (Jacobiano)&lt;/b&gt;&lt;br&gt;• Acción no escalada: &amp;atilde; = tanh(u) &amp;isin; (-1, 1)&lt;sup&gt;3&lt;/sup&gt;&lt;br&gt;• &lt;b&gt;Acción Residual Escalada: a&lt;sub&gt;t&lt;/sub&gt; = &amp;atilde; &amp;middot; 0.03 m &amp;isin; [-0.03, +0.03] m&lt;/b&gt;&lt;br&gt;• Corrección: log &amp;pi;(a|s) = log &amp;Nu;(u|&amp;mu;,&amp;sigma;) - &amp;sum;&lt;sub&gt;i=1&lt;/sub&gt;&lt;sup&gt;3&lt;/sup&gt; log(1 - &amp;atilde;&lt;sub&gt;i&lt;/sub&gt;&lt;sup&gt;2&lt;/sup&gt; + 10&lt;sup&gt;-7&lt;/sup&gt;)" vertex="1">
+          <mxGeometry height="65" width="480" x="570" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="2201" edge="1" parent="1" source="2101" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9333EA;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="2102" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2202" edge="1" parent="1" source="2102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9333EA;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="2103" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2203" edge="1" parent="1" source="2102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9333EA;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="2104" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2204" edge="1" parent="1" source="2103" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7C3AED;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="2105" value="&amp;mu;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2205" edge="1" parent="1" source="2104" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7C3AED;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="2105" value="&amp;sigma;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2206" edge="1" parent="1" source="2105" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6D28D9;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="2106" value="u">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3000" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;verticalAlign=top;align=center;fillColor=#EFF6FF;strokeColor=#2563EB;strokeWidth=2;fontStyle=1;fontSize=14;fontColor=#1E40AF;spacingTop=12;dashed=0;shadow=0;" value="&lt;b&gt;SUBSISTEMA 3: CRÍTICOS MELLIZOS &amp; DIANA (TWIN-Q &amp; TARGET CRITICS)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;font-weight:normal;color:#1E40AF;&#39;&gt;TwinCritic &amp;middot; Clipped Double Q-Learning&lt;/span&gt;" vertex="1">
+          <mxGeometry height="460" width="520" x="550" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="3101" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#3B82F6;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Concatenación Estado-Acción&lt;/b&gt;: [s&lt;sub&gt;t&lt;/sub&gt;, a&lt;sub&gt;t&lt;/sub&gt;] &amp;isin; &amp;real;&lt;sup&gt;22 + 3&lt;/sup&gt; = &amp;real;&lt;sup&gt;25&lt;/sup&gt;" vertex="1">
+          <mxGeometry height="35" width="480" x="570" y="615" as="geometry" />
+        </mxCell>
+        <mxCell id="3102" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Red Crítico Q&lt;sub&gt;&amp;theta;1&lt;/sub&gt;(s, a)&lt;/b&gt;&lt;br&gt;• Linear(25, 256) &amp;rarr; ReLU()&lt;br&gt;• Linear(256, 256) &amp;rarr; ReLU()&lt;br&gt;• Linear(256, 1) &amp;rarr; Escalar Q&lt;sub&gt;1&lt;/sub&gt;" vertex="1">
+          <mxGeometry height="75" width="230" x="570" y="665" as="geometry" />
+        </mxCell>
+        <mxCell id="3103" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Red Crítico Q&lt;sub&gt;&amp;theta;2&lt;/sub&gt;(s, a)&lt;/b&gt;&lt;br&gt;• Linear(25, 256) &amp;rarr; ReLU()&lt;br&gt;• Linear(256, 256) &amp;rarr; ReLU()&lt;br&gt;• Linear(256, 1) &amp;rarr; Escalar Q&lt;sub&gt;2&lt;/sub&gt;" vertex="1">
+          <mxGeometry height="75" width="230" x="820" y="665" as="geometry" />
+        </mxCell>
+        <mxCell id="3104" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4F46E5;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Redes Diana Estabilizadas: Q&lt;sub&gt;&amp;theta;&amp;macr;1&lt;/sub&gt;(s&#39;, a&#39;) &amp;amp; Q&lt;sub&gt;&amp;theta;&amp;macr;2&lt;/sub&gt;(s&#39;, a&#39;)&lt;/b&gt;&lt;br&gt;• Arquitectura idéntica, parámetros congelados durante el paso hacia adelante&lt;br&gt;• Evaluación en s&#39; con acción re-muestreada a&#39; ~ &amp;pi;&lt;sub&gt;&amp;phi;&lt;/sub&gt;(&amp;middot;|s&#39;)&lt;br&gt;• Valor diana conservador: &lt;b&gt;min(Q&lt;sub&gt;&amp;theta;&amp;macr;1&lt;/sub&gt;, Q&lt;sub&gt;&amp;theta;&amp;macr;2&lt;/sub&gt;)&lt;/b&gt; (Clipped Double Q)" vertex="1">
+          <mxGeometry height="65" width="480" x="570" y="760" as="geometry" />
+        </mxCell>
+        <mxCell id="3105" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#DC2626;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Actualización Suave de Parámetros Diana (Polyak Averaging)&lt;/b&gt;&lt;br&gt;&amp;theta;&amp;macr;&lt;sub&gt;i&lt;/sub&gt; &amp;larr; (1 - &amp;tau;&lt;sub&gt;polyak&lt;/sub&gt;) &amp;theta;&amp;macr;&lt;sub&gt;i&lt;/sub&gt; + &amp;tau;&lt;sub&gt;polyak&lt;/sub&gt; &amp;theta;&lt;sub&gt;i&lt;/sub&gt;, &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;tau;&lt;sub&gt;polyak&lt;/sub&gt; = 0.005&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#1E40AF;&#39;&gt;Garantiza convergencia asintótica y erradica divergencias por sobreestimación de valor&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="480" x="570" y="845" as="geometry" />
+        </mxCell>
+        <mxCell id="3106" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#1D4ED8;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Evaluación del Actor: Q&lt;sub&gt;min&lt;/sub&gt;(s, a)&lt;/b&gt;&lt;br&gt;Q&lt;sub&gt;min&lt;/sub&gt; = min(Q&lt;sub&gt;&amp;theta;1&lt;/sub&gt;(s, &amp;atilde;(s)), Q&lt;sub&gt;&amp;theta;2&lt;/sub&gt;(s, &amp;atilde;(s))) &amp;rarr; Utilizado para actualizar al Actor" vertex="1">
+          <mxGeometry height="45" width="480" x="570" y="915" as="geometry" />
+        </mxCell>
+        <mxCell id="3201" edge="1" parent="1" source="3101" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2563EB;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="3102" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3202" edge="1" parent="1" source="3101" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2563EB;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="3103" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3203" edge="1" parent="1" source="3104" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4F46E5;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="3105" value="Evaluación s&#39;, a&#39;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3204" edge="1" parent="1" source="3102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#DC2626;strokeWidth=2;dashed=1;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="3105" value="Gradientes de &amp;theta;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3205" edge="1" parent="1" source="3102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2563EB;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="3106" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3206" edge="1" parent="1" source="3103" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2563EB;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="3106" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4000" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;verticalAlign=top;align=center;fillColor=#FFF7ED;strokeColor=#EA580C;strokeWidth=2;fontStyle=1;fontSize=14;fontColor=#C2410C;spacingTop=12;dashed=0;shadow=0;" value="&lt;b&gt;SUBSISTEMA 4: EXPERIENCIA Y MUESTREO EN GPU (REPLAY BUFFER)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;font-weight:normal;color:#C2410C;&#39;&gt;ReplayBuffer &amp;middot; Manejo de Lotes Multi-Entorno&lt;/span&gt;" vertex="1">
+          <mxGeometry height="380" width="570" x="1110" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="4101" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Ingesta Vectorial en Paralelo: add_batch()&lt;/b&gt;&lt;br&gt;• Recibe transiciones de N&lt;sub&gt;envs&lt;/sub&gt; = 4 entornos de simulación simultáneos&lt;br&gt;• Formas de Tensores: obs (B, 22), act (B, 3), rew (B, 1), next_obs (B, 22), done (B, 1)&lt;br&gt;• Inserción inmediata sin contención de hilos: 4 transiciones por paso RL" vertex="1">
+          <mxGeometry height="65" width="530" x="1130" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="4102" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#EA580C;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Buffer Circular Pre-Asignado en Memoria (Capacidad = 50.000)&lt;/b&gt;&lt;br&gt;• &lt;tt&gt;obs_buf&lt;/tt&gt;: np.zeros((50000, 22), dtype=float32) [~4.4 MB]&lt;br&gt;• &lt;tt&gt;action_buf&lt;/tt&gt;: np.zeros((50000, 3), dtype=float32) [~0.6 MB]&lt;br&gt;• &lt;tt&gt;reward_buf&lt;/tt&gt;: np.zeros((50000, 1), dtype=float32)&lt;br&gt;• &lt;tt&gt;next_obs_buf&lt;/tt&gt;: np.zeros((50000, 22), dtype=float32)&lt;br&gt;• &lt;tt&gt;done_buf&lt;/tt&gt;: np.zeros((50000, 1), dtype=float32)&lt;br&gt;• &lt;i&gt;Cero fragmentación de memoria RAM/VRAM en sesiones largas de 1000+ episodios&lt;/i&gt;" vertex="1">
+          <mxGeometry height="95" width="530" x="1130" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="4103" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Muestreador de Mini-Lotes en GPU: buffer.sample(batch_size=64/256)&lt;/b&gt;&lt;br&gt;• Índices aleatorios uniformes sobre buffer activo [0, size)&lt;br&gt;• Conversión y transferencia directa a device=&#39;cuda&#39;:&lt;br&gt;  &lt;tt&gt;torch.as_tensor(..., dtype=torch.float32, device=&#39;cuda&#39;)&lt;/tt&gt;&lt;br&gt;• Salida: Diccionario de Tensores PyTorch listo para backprop" vertex="1">
+          <mxGeometry height="65" width="530" x="1130" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="4201" edge="1" parent="1" source="4101" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EA580C;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="4102" value="Push 4 envs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4202" edge="1" parent="1" source="4102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D97706;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="4103" value="Muestreo aleatorio">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5000" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;verticalAlign=top;align=center;fillColor=#FEF2F2;strokeColor=#DC2626;strokeWidth=2;fontStyle=1;fontSize=14;fontColor=#991B1B;spacingTop=12;dashed=0;shadow=0;" value="&lt;b&gt;SUBSISTEMA 5: ACTUALIZACIONES DE BELLMAN &amp; ENTROPÍA ADAPTATIVA&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;font-weight:normal;color:#991B1B;&#39;&gt;Loss Functions &amp; Adam Optimizers (LR=3e-4)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="520" width="570" x="1110" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="5101" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DC2626;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;1. Objetivo de Bellman Suave (Target Q con Temperatura &amp;alpha;)&lt;/b&gt;&lt;br&gt;&lt;b&gt;y = r + &amp;gamma; (1 - done) &amp;middot; [ min(Q&lt;sub&gt;&amp;theta;&amp;macr;1&lt;/sub&gt;(s&#39;, a&#39;), Q&lt;sub&gt;&amp;theta;&amp;macr;2&lt;/sub&gt;(s&#39;, a&#39;)) - &amp;alpha; log &amp;pi;(a&#39;|s&#39;) ]&lt;/b&gt;&lt;br&gt;• &amp;gamma; = 0.99 (factor de descuento temporal)&lt;br&gt;• a&#39; ~ &amp;pi;&lt;sub&gt;&amp;phi;&lt;/sub&gt;(&amp;middot;|s&#39;) muestreado con la política actual&lt;br&gt;• Evaluado en bloque &lt;tt&gt;with torch.no_grad():&lt;/tt&gt; para aislar gradientes" vertex="1">
+          <mxGeometry height="75" width="530" x="1130" y="555" as="geometry" />
+        </mxCell>
+        <mxCell id="5102" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#B91C1C;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;2. Pérdida del Crítico (&amp;Lscr;&lt;sub&gt;Q&lt;/sub&gt;) &amp;rarr; Optimizador Adam (&amp;theta;&lt;sub&gt;1&lt;/sub&gt;, &amp;theta;&lt;sub&gt;2&lt;/sub&gt;)&lt;/b&gt;&lt;br&gt;&lt;b&gt;&amp;Lscr;&lt;sub&gt;Q&lt;/sub&gt;(&amp;theta;&lt;sub&gt;1&lt;/sub&gt;, &amp;theta;&lt;sub&gt;2&lt;/sub&gt;) = MSE(Q&lt;sub&gt;&amp;theta;1&lt;/sub&gt;(s, a), y) + MSE(Q&lt;sub&gt;&amp;theta;2&lt;/sub&gt;(s, a), y)&lt;/b&gt;&lt;br&gt;• Minimiza el error de evaluación de estado-acción cuadrático&lt;br&gt;• Actualización: critic_loss.backward() &amp;rarr; critic_opt.step()" vertex="1">
+          <mxGeometry height="65" width="530" x="1130" y="645" as="geometry" />
+        </mxCell>
+        <mxCell id="5103" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#7C3AED;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;3. Pérdida del Actor (&amp;Lscr;&lt;sub&gt;&amp;pi;&lt;/sub&gt;) &amp;rarr; Optimizador Adam (&amp;phi;)&lt;/b&gt;&lt;br&gt;&lt;b&gt;&amp;Lscr;&lt;sub&gt;&amp;pi;&lt;/sub&gt;(&amp;phi;) = E&lt;sub&gt;s~D, &amp;epsilon;~&amp;Nu;&lt;/sub&gt; [ &amp;alpha; log &amp;pi;&lt;sub&gt;&amp;phi;&lt;/sub&gt;(a&lt;sub&gt;&amp;phi;&lt;/sub&gt;(s)|s) - min(Q&lt;sub&gt;&amp;theta;1&lt;/sub&gt;(s, a&lt;sub&gt;&amp;phi;&lt;/sub&gt;(s)), Q&lt;sub&gt;&amp;theta;2&lt;/sub&gt;(s, a&lt;sub&gt;&amp;phi;&lt;/sub&gt;(s))) ]&lt;/b&gt;&lt;br&gt;• Maximiza simultáneamente el valor Q esperado y la entropía de la acción&lt;br&gt;• Retropropaga a través de la reparametrización sin afectar a los críticos" vertex="1">
+          <mxGeometry height="75" width="530" x="1130" y="725" as="geometry" />
+        </mxCell>
+        <mxCell id="5104" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;4. Entropía Adaptativa Automática (&amp;Lscr;&lt;sub&gt;&amp;alpha;&lt;/sub&gt;) &amp;rarr; Optimizador log_alpha&lt;/b&gt;&lt;br&gt;&lt;b&gt;&amp;Lscr;(&amp;alpha;) = - E [ log &amp;alpha; &amp;middot; (log &amp;pi;&lt;sub&gt;&amp;phi;&lt;/sub&gt;(a|s) + H&amp;#773;) ]&lt;/b&gt;&lt;br&gt;• Entropía Objetivo Fija: &lt;b&gt;H&amp;#773; = - dim(Acciones) = -3.0&lt;/b&gt;&lt;br&gt;• Parámetro positivo: &amp;alpha; = exp(log_alpha) &amp;gt; 0&lt;br&gt;• Autorregulación: si la entropía decae por debajo de -3.0, &amp;alpha; aumenta (más exploración); si es alta, &amp;alpha; disminuye" vertex="1">
+          <mxGeometry height="85" width="530" x="1130" y="815" as="geometry" />
+        </mxCell>
+        <mxCell id="5105" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Métricas de Entrenamiento Exportadas (Logs JSONL / CSV)&lt;/b&gt;&lt;br&gt;• &lt;tt&gt;critic_loss&lt;/tt&gt; (convergencia Bellman) | &lt;tt&gt;actor_loss&lt;/tt&gt; (mejora de política)&lt;br&gt;• &lt;tt&gt;alpha&lt;/tt&gt; (coeficiente de temperatura) | &lt;tt&gt;time_sec&lt;/tt&gt; &amp;amp; &lt;tt&gt;ep_reward&lt;/tt&gt;" vertex="1">
+          <mxGeometry height="50" width="530" x="1130" y="915" as="geometry" />
+        </mxCell>
+        <mxCell id="5201" edge="1" parent="1" source="5101" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#DC2626;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="5102" value="Target Q (y)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5202" edge="1" parent="1" source="5102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7C3AED;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="5103" value="Min Q_curr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5203" edge="1" parent="1" source="5103" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D97706;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="5104" value="curr_log_prob">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5204" edge="1" parent="1" source="5104" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="5105" value="Registros">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="6000" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;verticalAlign=top;align=center;fillColor=#F0FDF4;strokeColor=#16A34A;strokeWidth=2;fontStyle=1;fontSize=14;fontColor=#14532D;spacingTop=12;dashed=0;shadow=0;" value="&lt;b&gt;SUBSISTEMA 6: GESTOR DE CURRÍCULO ADAPTATIVO &amp; FSM MULTI-ETAPA&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;font-weight:normal;color:#14532D;&#39;&gt;CurriculumManager &amp;middot; Control de Fricción de Mesa y Promoción de Fases&lt;/span&gt;" vertex="1">
+          <mxGeometry height="260" width="1640" x="40" y="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="6101" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Ventana Deslizante de Éxito&lt;/b&gt;&lt;br&gt;• Tamaño: W = 15 episodios&lt;br&gt;• Criterio de Éxito de Episodio:&lt;br&gt;  &lt;b&gt;d&lt;sub&gt;final&lt;/sub&gt; &amp;le; &amp;delta;&lt;sub&gt;threshold&lt;/sub&gt; (0.05 m)&lt;/b&gt;&lt;br&gt;• Tasa de Éxito: SR = (N&lt;sub&gt;éxitos&lt;/sub&gt; / W) &amp;times; 100%&lt;br&gt;• &lt;b&gt;Umbral de Promoción: SR &amp;ge; 85%&lt;/b&gt;" vertex="1">
+          <mxGeometry height="105" width="300" x="60" y="1095" as="geometry" />
+        </mxCell>
+        <mxCell id="6102" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Decaimiento de Fricción de Mesa (&amp;mu;&lt;sub&gt;table&lt;/sub&gt;)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;&amp;mu; = 80.0 (Fase Inicial &#39;Fácil&#39;)&lt;/b&gt;: Retención cuasi-infinita, prenda anclada, Bézier nominal domina&lt;br&gt;• &lt;b&gt;&amp;mu; = 20.0 (Fase Media)&lt;/b&gt;: Comienzo de deslizamientos inerciales y fuerzas tangenciales de arrastre&lt;br&gt;• &lt;b&gt;&amp;mu; = 5.0 (Fase Final &#39;Difícil&#39;)&lt;/b&gt;: Mesa deslizante; Bézier nominal falla (SR &amp;lt; 50%), SAC residual corrige activamente en tiempo real (SR &amp;ge; 90%)" vertex="1">
+          <mxGeometry height="105" width="470" x="380" y="1095" as="geometry" />
+        </mxCell>
+        <mxCell id="6103" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#7C3AED;fontColor=#1E293B;fontStyle=1;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;FSM de Doblado Canónico en 3 Etapas Secuenciales&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Etapa 1: Plegado Lateral de Pernera&lt;/b&gt; &amp;rarr; P&lt;sub&gt;0&lt;/sub&gt;=l_corner &amp;rarr; P&lt;sub&gt;target&lt;/sub&gt;=r_corner (H=20 pasos, &amp;Delta;x residual)&lt;br&gt;• &lt;b&gt;Etapa 2: Tracción Bicapa de Cintura&lt;/b&gt; &amp;rarr; P&lt;sub&gt;0&lt;/sub&gt;=[top_ctr_f, top_ctr_b] (elevación 32 cm + sacudida anti-arrugas)&lt;br&gt;• &lt;b&gt;Etapa 3: Doblado Longitudinal Completo&lt;/b&gt; &amp;rarr; P&lt;sub&gt;0&lt;/sub&gt;=[l_leg_o, r_leg_o] (tobillos) &amp;rarr; P&lt;sub&gt;target&lt;/sub&gt;=top_ctr_f (cintura)&lt;br&gt;• Transferencia de Pesos: Carga checkpoints canónicos automáticos &lt;tt&gt;sac_best_stage1.pt&lt;/tt&gt;" vertex="1">
+          <mxGeometry height="105" width="520" x="870" y="1095" as="geometry" />
+        </mxCell>
+        <mxCell id="6104" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;fontColor=#1E293B;fontStyle=0;fontSize=11;align=center;verticalAlign=middle;strokeWidth=1.5;spacing=4;shadow=0;" value="&lt;b&gt;Suite de Evaluación y Renderizado HD&lt;/b&gt;&lt;br&gt;• Script: &lt;tt&gt;03_eval_policy.py&lt;/tt&gt;&lt;br&gt;• Intervalos Wilson Score 95%&lt;br&gt;• Video MP4 HD sin fugas VRAM&lt;br&gt;• Comparación vs Baseline Nominal" vertex="1">
+          <mxGeometry height="105" width="250" x="1410" y="1095" as="geometry" />
+        </mxCell>
+        <mxCell id="6201" edge="1" parent="1" source="6101" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#16A34A;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="6102" value="SR &amp;ge; 85%">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="6202" edge="1" parent="1" source="6102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7C3AED;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="6103" value="&amp;mu; &amp;le; 5.0 superado">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="6203" edge="1" parent="1" source="6103" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="6104" value="Eval Stage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="9001" edge="1" parent="1" source="1103" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=3;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="2101" value="s_t (22D)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="437" />
+              <mxPoint x="500" y="172" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9002" edge="1" parent="1" source="1103" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0D9488;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="3101" value="s_t (22D)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="510" y="437" />
+              <mxPoint x="510" y="632" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9003" edge="1" parent="1" source="2106" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EF4444;strokeWidth=3;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="1105" value="Acción residual a_t (3D)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="442" />
+              <mxPoint x="540" y="665" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9004" edge="1" parent="1" source="2106" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9333EA;strokeWidth=2;dashed=1;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="3101" value="a_t (3D)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="810" y="485" />
+              <mxPoint x="810" y="580" />
+              <mxPoint x="810" y="615" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9005" edge="1" parent="1" source="1107" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EA580C;strokeWidth=3;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="4101" value="add_batch(s_t, a_t, r_t, s_t+1, d_t) [4 envs]">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="920" />
+              <mxPoint x="300" y="950" />
+              <mxPoint x="1090" y="950" />
+              <mxPoint x="1090" y="187" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9006" edge="1" parent="1" source="4103" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D97706;strokeWidth=3;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="5101" value="Muestreo Mini-Lote GPU (Batch B=64/256)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1395" y="420" />
+              <mxPoint x="1395" y="545" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9007" edge="1" parent="1" source="2102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7C3AED;strokeWidth=2;dashed=1;startArrow=classic;endArrow=none;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="5103" value="&amp;nabla;_&amp;phi; (Actualización Actor)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="235" />
+              <mxPoint x="1080" y="235" />
+              <mxPoint x="1080" y="762" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9008" edge="1" parent="1" source="3102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2563EB;strokeWidth=2;dashed=1;startArrow=classic;endArrow=none;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="5102" value="&amp;nabla;_&amp;theta; (Actualización Críticos)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="702" />
+              <mxPoint x="1085" y="702" />
+              <mxPoint x="1085" y="677" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9009" edge="1" parent="1" source="1107" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#16A34A;strokeWidth=2;dashed=0;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="6101" value="Resultado Episodio (d_final, is_success)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="280" y="920" />
+              <mxPoint x="280" y="1020" />
+              <mxPoint x="210" y="1020" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9010" edge="1" parent="1" source="6102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D97706;strokeWidth=2;dashed=1;startArrow=none;endArrow=classic;fontSize=10;fontColor=#334155;labelBackgroundColor=#FFFFFF;" target="1101" value="Ajuste coup_friction (&amp;mu; = 80 &amp;rarr; 20 &amp;rarr; 5)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="615" y="1080" />
+              <mxPoint x="615" y="1030" />
+              <mxPoint x="20" y="1030" />
+              <mxPoint x="20" y="207" />
+              <mxPoint x="60" y="207" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

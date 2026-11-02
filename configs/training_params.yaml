@@ -1,0 +1,161 @@
+# ==============================================================================
+# CALIBRATED CONFIGURATION: MULTI-STAGE DYNAMIC CLOTH FOLDING WITH CURRICULUM
+# Based on: Li et al. (2025), J. Shanghai Jiao Tong Univ. (Sci.)
+# DOI: 10.1007/s12204-024-2710-7
+# Adapted to Genesis World XPBD cloth solver with GPU-validated physics,
+# C^2 quintic smoothstep Bézier trajectories, and sequential staged pipeline (FSM).
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. GENESIS PHYSICAL SIMULATION PARAMETERS (XPBD)
+# (Based on validated calibration from pants_fold_visual.yaml and Script 06)
+# ------------------------------------------------------------------------------
+simulation:
+  backend: "genesis_pbd"
+  time_step: 0.004            # Base Genesis integration dt (250 Hz)
+  substeps: 10                # 10 Genesis substeps (2500 Hz internal physics clock)
+  solver_iterations:
+    stretch: 20               # Distance constraint solver iterations (zero residual error)
+    bending: 10               # Bending/isometric constraint solver iterations
+  
+  # Workspace geometry: Robot Pedestal and Work Table (Robot arm unloaded)
+  workspace:
+    pedestal:
+      pos: [0.0, 0.0, 0.025]        # Center of robot base pedestal
+      size: [0.3, 0.3, 0.05]        # Pedestal dimensions (X, Y, Z)
+      mount_pos: [0.0, 0.0, 0.05]   # Top mounting face for robot base
+      coup_friction: 10.0           # Pedestal friction
+      color: [0.22, 0.22, 0.25, 1.0]# Dark metallic finish
+    table:
+      pos: [0.72, 0.0, 0.025]       # Center of work table (4.2 cm clearance from shoulder)
+      size: [1.2, 1.6, 0.05]        # Table dimensions (1.2m depth, 1.6m width, 5cm thickness)
+      top_z: 0.05                   # Tabletop contact surface height (Z = 0.05 m)
+      color: [0.58, 0.42, 0.26, 1.0]# Wooden tabletop finish
+
+  # Particle geometry and collision
+  cloth_scale: 0.26           # Cloth dimension: 0.26m x 0.26m (Paper Table 2)
+  mesh_resolution: 26         # Grid resolution 26x26 (676 PBD particles)
+  particle_size: 0.008        # Particle collision radius (8 mm anti-tunneling)
+  hash_grid_cell_size: 0.0125 # Spatial hash grid cell size (12.5 mm)
+
+  # XPBD Constitutive Material (Nominal values validated in Genesis)
+  material:
+    rho: 7.264                # Volumetric density tested in Genesis
+    stretch_compliance: 3.5e-6 # High stiffness / near inextensibility (E ~ 250 GPa equivalent)
+    stretch_relaxation: 0.30   # Elastic damping without rebound oscillations
+    bending_compliance: 9.5    # Calibrated bending flexibility for natural draping
+    bending_relaxation: 0.08   # Energy dissipation for wrinkle damping
+    static_friction: 1.80      # Cloth-to-cloth static friction
+    kinetic_friction: 1.00     # Cloth-to-cloth kinetic friction
+    air_resistance: 0.05       # Aerodynamic drag for stable free-fall settling
+
+  # ----------------------------------------------------------------------------
+  # PHYSICAL DOMAIN RANDOMIZATION (CONTROLLED)
+  # (Keep enabled: false during initial policy verification)
+  # ----------------------------------------------------------------------------
+  domain_randomization:
+    enabled: false             # Enable only after baseline convergence
+    rho_range: [6.5, 8.0]      # Narrow density variation (+-10%)
+    bending_range: [8.5, 11.0] # Narrow bending compliance variation
+    friction_range: [1.5, 2.1] # Cloth-to-cloth friction variation
+
+# ------------------------------------------------------------------------------
+# 2. ADAPTIVE TABLE RETENTION CURRICULUM (Translating penalty spring k)
+# ------------------------------------------------------------------------------
+curriculum:
+  max_stage: 1                # Locked exclusively to Stage 1 (pernera)
+  friction_min: 5.0           # Hard regime (slippery table, high inertial displacement)
+  friction_max: 80.0          # Easy regime (strong retention tested in Script 06, fixed pivot)
+  variance_sigma: 0.25        # Sigma(R) for stochastic curriculum sampling
+  return_norm_scale: 1000.0   # Return normalization denominator scale
+
+# ------------------------------------------------------------------------------
+# 3. TASK, OBSERVATION AND REWARD SPACE (Paper Sec. 3.3, 3.4 & 4.1)
+# ------------------------------------------------------------------------------
+task_env:
+  control_freq: 5.0           # Policy action rate: 5 Hz (commands every 0.20s = 10 dt_sim)
+  action_repeat: 35           # 35 simulation steps per RL decision step
+  delta_threshold: 0.05       # Distance threshold delta = 0.05 m (5 cm accumulated error)
+  reward_exponent: 0.4        # Concave reward law: r = 1 - (||g - s|| / delta)^0.4
+  action_clip_meters: 0.03    # Maximum Cartesian displacement delta per RL step (3 cm)
+  max_episode_steps: 2000     # Temporal horizon (400 simulated seconds)
+  success_hold_steps: 200     # Consecutive steps within delta required for termination
+  sensor_noise_std: 0.002     # RealSense D435 camera depth noise: 2 mm (Sim-to-Real)
+
+# ------------------------------------------------------------------------------
+# 4. REINFORCEMENT LEARNING HYPERPARAMETERS: SAC + HER (Paper Table 1)
+# ------------------------------------------------------------------------------
+rl_agent:
+  algorithm: "SAC"
+  total_timesteps: 100000     # Total training timesteps
+  learning_rate: 1.0e-4       # Learning rate for actor and critic networks
+  batch_size: 512             # Batch size for off-policy updates
+  gamma: 0.995                # Discount factor
+  reward_scale: 0.5           # Reward scaling factor
+  n_sampled_goal: 20          # HER future goal transitions sampled per step
+  goal_strategy: "future"
+  
+  net_arch:
+    pi: [256, 256]            # Actor MLP: 2 layers x 256 ReLU
+    qf: [256, 256]            # Critic MLP: 2 layers x 256 ReLU
+  n_critics: 4                # Ensemble of 4 critic networks (Paper Sec. 4.1)
+
+# ------------------------------------------------------------------------------
+# 5. BÉZIER GEOMETRY AND TRAJECTORY RANDOMIZATION (09_ghost Baseline)
+# ------------------------------------------------------------------------------
+bezier_geometry:
+  timing_law: "quintic_smoothstep" # s(tau) = 10*tau^3 - 15*tau^4 + 6*tau^5 (C^2 smooth)
+  default_mode: "quadratic"        # Uses midpoint parabolic control apex P1
+
+  # Nominal baseline parameters (Calibrated in 09_ghost)
+  h_ratio_nominal: 0.65            # Elevation apex = 0.65 * ||P2 - P0||
+  theta_deg_nominal: 0.0           # Planar vertical arc without lateral tilt
+  n_fold_steps_nominal: 450        # Discrete integration steps along Bézier curve
+  n_settle_steps: 60               # Free gravitational settling steps after release
+
+  # Trajectory Domain Randomization (Sampled during env.reset())
+  randomize_trajectory: true       # Re-sample trajectory parameters on reset
+  h_ratio_range: [0.50, 0.75]      # Apex height ratio interval (prevents dragging & over-separation)
+  theta_deg_range: [-5.0, 15.0]    # Lateral tilt angle interval (degrees)
+  fold_steps_range: [380, 520]     # Velocity and duration randomization interval
+
+# ------------------------------------------------------------------------------
+# 6. CANONICAL MULTI-STAGE PIPELINE (Staged Folding FSM)
+# ------------------------------------------------------------------------------
+stages:
+  stage_1:
+    name: "lateral_fold"
+    grasp_keypoints: ["l_corner"]          # Initial traction point (P0)
+    target_keypoints: ["r_corner"]         # Target fold destination (P2)
+    pivot_keypoints: ["r_corner", "crotch"]# Table anchor / anti-slippage base pivots
+    grasp_radius: 0.020                    # Robotiq ghost grasp patch radius (20 mm)
+    anchor_radius: 0.018                   # Base pivot anchor radius (18 mm)
+    z_landing_offset: 0.020                # Bilayer landing offset above table (20 mm)
+    bezier:
+      h_ratio: 0.48                        # Sweet spot apex elevation: 0.48 * ||P2 - P0|| (~21 cm)
+      theta_deg: 12.0                      # Outward lateral tilt angle (clears crotch)
+      mode: "cubic"                        # Cubic C^2 smooth curve
+      n_fold_steps: 550                    # Nominal curve integration steps
+      n_settle_steps: 60                   # Gravitational settling steps
+    success_delta: 0.04                    # Strict goal convergence threshold (4 cm)
+
+  stage_2:
+    name: "waist_bicapa_stretch"
+    # Simultaneous 2-point grasp (Front layer + Back layer)
+    grasp_keypoints: ["top_ctr_f", "top_ctr_b"]
+    grasp_radius: 0.022                    # Robotiq 2F-85 pad radius (22 mm metric ball)
+    lift_height: 0.32                      # Vertical suspension height (32 cm)
+    shake_cycles: 2                        # Transverse shake cycles to disentangle folds
+    min_stretch_span: 0.50                 # Minimum longitudinal Y span to confirm stretch
+
+  stage_3:
+    name: "longitudinal_half_fold"
+    grasp_keypoints: ["r_leg_o", "l_leg_o"]# Dual grasp at hem/ankle cuffs
+    target_keypoints: ["top_ctr_f"]        # Longitudinal fold towards waist
+    bezier:
+      h_ratio: 0.35                        # Flatter apex for lower-body fold
+      theta_deg: 0.0                       # Symmetric straight fold
+      mode: "quadratic"                    # Quadratic parabolic trajectory
+      n_fold_steps: 450                    # Curve integration steps
+      n_settle_steps: 60                   # Free settling steps
+    success_delta: 0.05

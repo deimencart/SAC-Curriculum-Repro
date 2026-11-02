@@ -1,0 +1,37 @@
+{
+  "stage": 2,
+  "n_episodes": 3,
+  "timestamp": "2026-10-10 18:10:59",
+  "run_tag": "20261010_181059",
+  "checkpoint": "D:/genesis_ws/phase_5_gym_env/cloth_curriculum_rl/checkpoints/sac_latest.pt",
+  "nominal_baseline": {
+    "n_episodes": 3,
+    "success_count": 0,
+    "success_rate": 0.0,
+    "wilson_ci_95": [
+      0.0,
+      0.5615060804490177
+    ],
+    "mean_return": -34.47776258446091,
+    "std_return": 2.339266524700171,
+    "mean_final_dist_m": 0.08050052324930827,
+    "std_final_dist_m": 0.007622062606965554,
+    "mean_alignment_error_m": 0.10124729822079341,
+    "mean_contact_ratio": 0.4498736310025273
+  },
+  "sac_policy": {
+    "n_episodes": 3,
+    "success_count": 0,
+    "success_rate": 0.0,
+    "wilson_ci_95": [
+      0.0,
+      0.5615060804490177
+    ],
+    "mean_return": -39.047453132075155,
+    "std_return": 0.05092374696012135,
+    "mean_final_dist_m": 0.1833441456158956,
+    "std_final_dist_m": 0.0009366515620372752,
+    "mean_alignment_error_m": 0.09616520007451375,
+    "mean_contact_ratio": 0.636829542263409
+  }
+}
