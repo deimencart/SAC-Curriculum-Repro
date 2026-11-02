@@ -77,10 +77,25 @@ The agent converges to robust folding policies that overcome the failures of pur
 | :---: | :---: |
 | ![Level 5 Eval](docs/images/eval_level5_free_500ep.png) | ![Progress](docs/images/training_progress.png) |
 
-### Video Evaluations
-Side-by-side MP4 comparison recordings are available in the `videos/` folder:
-* `stage_1_nominal_baseline.mp4` vs. `stage_1_sac_best_attempt.mp4`: Active wrinkle correction during lateral folding.
-* `stage_2_nominal_baseline.mp4` vs. `stage_2_sac_best_attempt.mp4`: Reduces ankle misalignment from $14.2\,\text{cm}$ to just $3.1\,\text{cm}$.
+### Video Evaluations & Policy Rollouts
+
+Side-by-side animated rollouts comparing the nominal analytical baseline against the learned Soft Actor-Critic residual policy:
+
+#### Stage 1 — Lateral Leg Folding (Active Wrinkle Correction)
+
+| Nominal Analytical Baseline (No Residual) | SAC Residual Policy (Best Attempt) |
+| :---: | :---: |
+| ![Stage 1 Baseline](videos/stage_1_nominal_baseline.gif) | ![Stage 1 SAC Policy](videos/stage_1_sac_best_attempt.gif) |
+| *Open-loop Bézier path accumulates fabric tension and fold wrinkles.* | *Learned Cartesian offsets dynamically compensate for friction and cloth stiffness.* |
+
+#### Stage 2 — Dual-Layer Waistband Lift & Drape (Hem Alignment)
+
+| Nominal Analytical Baseline (No Residual) | SAC Residual Policy (Best Attempt) |
+| :---: | :---: |
+| ![Stage 2 Baseline](videos/stage_2_nominal_baseline.gif) | ![Stage 2 SAC Policy](videos/stage_2_sac_best_attempt.gif) |
+| *Fixed elevation path causes severe hem misalignment ($14.2\,\text{cm}$).* | *Residual policy dynamically shakes and drapes fabric, reducing error to $3.1\,\text{cm}$.* |
+
+*(Full-resolution MP4 recordings are also available in `videos/`)*
 
 ---
 
@@ -113,7 +128,7 @@ sac_curriculum_cloth_folding/
 │       └── record_policy_video.py            <- Video recording utility
 ├── checkpoints/                              <- Converged weights (.pt) and JSON traces
 ├── eval_reports/                             <- JSON evaluation logs
-└── videos/                                   <- Side-by-side comparison recordings
+└── videos/                                   <- Side-by-side comparison recordings (.mp4, .gif)
 ```
 
 ---
