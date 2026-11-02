@@ -1,212 +1,148 @@
-# Soft Actor-Critic (SAC) & Multi-Stage Curriculum Learning for Robotic Cloth Folding
+# Soft Actor-Critic (SAC) & Curriculum Learning para Doblado Robótico de Ropa
 
-> **Continuous Residual Policy Learning for Deformable Object Manipulation in GPU Physics**  
-> *Simulation Engine: Genesis World (XPBD / PBD Solvers on GPU)*  
-> *Control Policy: Gaussian Actor-Critic with Clipped Double-Q and Entropy Auto-Tuning*  
-> *Curriculum Framework: Multi-Stage Difficulty Pacing Function $\lambda(t)$ for Folding & Drape*
+> **Reproducción Académica e Implementación Experimental**  
+> *Referencias: Haarnoja et al. (ICML 2018), Wang et al. (IEEE TPAMI 2021), Li et al. (2025)*  
+> *Simulador: Genesis World (Física de Deformables XPBD / PBD en GPU)*  
+> *Framework: PyTorch, Gymnasium, Control Continuo Residual en SE(3)*
 
 ---
 
 > [!IMPORTANT]
-> **Academic Reproduction & Non-Plagiarism Disclaimer**  
-> This repository is an **independent academic reproduction and experimental implementation** created strictly for research, testing, and educational purposes in robotics and artificial intelligence. All foundational theoretical concepts, algorithmic architectures, and task formulations are fully attributed to the original authors (*Haarnoja et al., 2018; Wang et al., 2021; Li et al., 2025*). This work does not claim ownership of the original methodology and is published without commercial intent or purpose of plagiarism.
+> **Aviso de Reproducción Académica (Sin fines de plagio)**  
+> Este repositorio contiene una **reproducción experimental e implementación académica independiente** realizada con fines educativos y de investigación en robótica y aprendizaje por refuerzo. Los modelos teóricos de Soft Actor-Critic y Curriculum Learning pertenecen y son atribuidos a sus autores originales (*Haarnoja et al., 2018; Wang et al., 2021; Li et al., 2025*). Esta implementación no tiene fines comerciales ni intención de plagio.
 
 ---
 
-## Quick Navigation Index
+## 📌 ¿Qué problema resuelve este proyecto?
 
-| Section | Description | Direct Link |
-| :--- | :--- | :--- |
-| **System Overview** | Task definition, residual architecture, and state flow | [System Overview](#system-overview) |
-| **Mathematical Formulation** | MaxEnt SAC, Gaussian squashed policy, Clipped Double-Q, pacing | [Mathematical Formulation](#mathematical-formulation) |
-| **Curriculum Strategy** | 2-stage curriculum: lateral Bézier fold and dual-layer drape | [Curriculum Strategy](#curriculum-strategy) |
-| **Experimental Results** | Training convergence curves, eval metrics, and videos | [Experimental Results](#experimental-results) |
-| **Repository Structure** | Codebase layout across envs, models, scripts, and checkpoints | [Repository Structure](#repository-structure) |
-| **Execution Guide** | Verification, curriculum training, and evaluation commands | [Execution Guide](#execution-guide) |
+Entrenar a un manipulador robótico para doblar prendas flexibles utilizando Reinforcement Learning (RL) puro desde cero suele fracasar. Las telas tienen infinitos grados de libertad, se auto-colisionan de forma no lineal y el espacio de búsqueda es demasiado amplio para explorar a ciegas.
+
+Para resolverlo, esta implementación combina dos conceptos fundamentales:
+1. **Control Residual:** En lugar de dejar que la red controle el brazo desde cero, el robot sigue una trayectoria nominal suave (curvas de Bézier cúbicas $C^2$ de mínimo tirón). La política **Soft Actor-Critic (SAC)** solo aprende a aplicar correcciones residuales cartesianas finas ($\Delta \mathbf{x}$) para compensar arrugas y estiramientos.
+2. **Curriculum Learning Multi-Etapa:** La dificultad de la tarea se modula progresivamente mediante una función de avance $\lambda(t) \in [0, 1]$. El robot empieza asistido en un rango estrecho y, conforme supera umbrales de éxito geométricos, se libera el control continuo total.
 
 ---
 
-## System Overview
+## 🛠️ ¿Qué implementamos en este repositorio?
 
-Robotic folding of textiles presents severe non-linearities: infinite degrees of freedom, self-collisions, and contact dynamics with friction. This repository implements an end-to-end continuous **Soft Actor-Critic (SAC)** policy integrated with a **Curriculum Learning** pacing engine, deployed on **Genesis World** with parallel GPU physics.
+El sistema integra un simulador físico de ropa en GPU con redes neuronales continuas en PyTorch:
 
 ```
-+-------------------------------------------------------------+
-|                 Genesis Simulation Backend                  |
-|          (XPBD Cloth Physics + Parallel Environments)       |
-+------------------------------+------------------------------+
-                               |
-                               v
-+-------------------------------------------------------------+
-|                    Gymnasium Observation                    |
-|  [ End-Effector Pose (SE3) | Canonical Keypoints (R3xK) ]   |
-+------------------------------+------------------------------+
-                               |
-                               v
-+-------------------------------------------------------------+
-|               Multi-Stage Curriculum Controller             |
-|   Difficulty pacing lambda(t) in [0, 1] + Success Monitors   |
-+------------------------------+------------------------------+
-                               |
-                               v
-+-------------------------------------------------------------+
-|                     Continuous SAC Policy                   |
-|  GaussianActor: mu_theta(s), sigma_theta(s) -> Tanh Squash  |
-|  TwinCritic: Q_phi1(s, a), Q_phi2(s, a) -> Clipped Double-Q |
-+------------------------------+------------------------------+
-                               |
-                               v
-+-------------------------------------------------------------+
-|               Residual Cartesian Action Delta x             |
-|       Nominal Bézier Trajectory + Policy Residual Delta a    |
-+-------------------------------------------------------------+
+[ Simulador Físico Genesis World ] (Física XPBD en GPU)
+                 |
+                 v
+   [ Entorno Gymnasium (SE3) ]     (Pose del robot + Keypoints de tela)
+                 |
+                 v
+   [ Controlador de Currículo ]    (Función de avance lambda(t) en 5 niveles)
+                 |
+                 v
+   [ Red SAC (GaussianActor) ]     (Acciones continuas con squash Tanh)
+                 |
+                 v
+ [ Acción Residual + Trayectoria ] (Movimiento nominal Bézier + Corrección Delta x)
 ```
 
-### Visual Highlights
+### 1. Entorno de Simulación Gymnasium (`src/envs/`)
+* **`dynamic_folding_env.py`:** Wrapper compatible con Gymnasium que conecta las acciones cartesianas con el brazo robótico y la pinza en Genesis World.
+* **`cloth_genesis_backend.py`:** Interfaz de simulación en GPU que gestiona el motor XPBD, los parámetros elásticos de la tela y la detección de contacto.
+* **`bezier_geometry.py`:** Generador de trayectorias analíticas de mínimo tirón (polinomios quínticos $C^2$) que garantizan movimientos suaves sin aceleraciones bruscas.
+* **`measure_corner_fold.py`:** Módulo de métricas geométricas que calcula distancias Chamfer y errores de alineación entre perneras.
 
-| Stage 1: Real-Scene Training Curves | Stage 2: 500-Episode Training Analysis |
+### 2. Algoritmo Soft Actor-Critic en PyTorch (`src/models/sac_policy.py`)
+* **Actor Gaussiano:** Red neuronal que predice la media y desviación estándar de la corrección cartesiana, acotada suavemente mediante $\tanh(\cdot)$ con corrección analítica del Jacobiano para evitar divergencias.
+* **Críticos Gemelos (Twin Critic):** Dos redes $Q$ independientes que aplican *Clipped Double-Q* para evitar la sobreestimación sistemática del valor.
+* **Temperatura Adaptativa ($\alpha$):** Ajuste automático del balance entre explorar nuevas soluciones y explotar las acciones seguras.
+
+### 3. Gestor de Currículo Automático (`src/callbacks/curriculum_callback.py`)
+Controla el avance por niveles evaluando el desempeño en ventanas móviles:
+* **Etapa 1 (Pliegue Lateral de Pernera):**
+  * Nivel 1 ($\lambda = 0.0$): Trayectoria nominal pura asistida.
+  * Niveles 2 a 4: Apertura gradual del rango de corrección residual ($\pm 2\,\text{cm}$ a $\pm 8\,\text{cm}$).
+  * Nivel 5 ($\lambda = 1.0$): Control residual completamente libre.
+* **Etapa 2 (Elevación Bicapa y Alisado por Gravedad):** Agarre bicapa de pretina (44 partículas), elevación vertical a $+65\,\text{cm}$ con batido transversal ("ondear sábana") y drapeado sobre la mesa alineando las botamangas ($\le 4\,\text{cm}$).
+
+---
+
+## 📊 Evidencias y Resultados de Entrenamiento
+
+El entrenamiento converge a políticas robustas que superan los fallos de arrugado de los baselines analíticos:
+
+| Curvas de Entrenamiento Etapa 1 (Escena Real) | Análisis Completo de 500 Episodios Etapa 2 |
 | :---: | :---: |
 | ![Stage 1 Curves](docs/images/training_curves_stage1_real_scene.png) | ![Stage 2 Analysis](docs/images/stage2_500ep_complete_training_analysis.png) |
 
-| Level 5 Free-Action Evaluation | Level 4 Soft-Curriculum Progress |
+| Evaluación de Nivel 5 (Acción Libre) | Progreso de Entrenamiento |
 | :---: | :---: |
-| ![Level 5](docs/images/eval_level5_free_500ep.png) | ![Level 4](docs/images/eval_level4_soft_complete_100ep.png) |
+| ![Level 5 Eval](docs/images/eval_level5_free_500ep.png) | ![Progress](docs/images/training_progress.png) |
+
+### Comparación en Vídeo
+En la carpeta `videos/` se incluyen comparativas en formato MP4:
+* `stage_1_nominal_baseline.mp4` vs. `stage_1_sac_best_attempt.mp4`: Corrección del pliegue de pernera.
+* `stage_2_nominal_baseline.mp4` vs. `stage_2_sac_best_attempt.mp4`: Reducción del desalineamiento de tobillos de $14.2\,\text{cm}$ a solo $3.1\,\text{cm}$.
 
 ---
 
-## Mathematical Formulation
-
-### 1. Maximum Entropy Reinforcement Learning (Soft Actor-Critic)
-The agent optimizes expected return while maximizing policy entropy $\mathcal{H}$:
-$$J(\pi) = \sum_{t=0}^T \mathbb{E}_{(s_t, a_t) \sim \rho_\pi} \left[ r(s_t, a_t) + \alpha \mathcal{H}(\pi(\cdot \mid s_t)) \right]$$
-where temperature $\alpha$ dynamically balances exploration against exploitation:
-$$J(\alpha) = \mathbb{E}_{a_t \sim \pi_t} \left[ -\alpha \left( \log \pi_t(a_t \mid s_t) + \bar{\mathcal{H}} \right) \right], \quad \bar{\mathcal{H}} = -\dim(\mathcal{A})$$
-
-### 2. Squashed Gaussian Policy with Analytic Jacobian Correction
-Actions $\mathbf{a}_t \in \mathbb{R}^6$ are sampled via the reparameterization trick:
-$$u_t = \mu_\theta(s_t) + \sigma_\theta(s_t) \odot \xi, \quad \xi \sim \mathcal{N}(\mathbf{0}, I), \quad a_t = \tanh(u_t)$$
-The exact log-likelihood accounts for the non-linear change of variables:
-$$\log \pi(a_t \mid s_t) = \log \mu(u_t \mid s_t) - \sum_{i=1}^D \log \left( 1 - \tanh^2(u_{t, i}) + \epsilon \right)$$
-with guard parameter $\epsilon = 10^{-7}$ preventing numerical singularities.
-
-### 3. Clipped Double-Q Learning
-Overestimation bias is bounded by taking the minimum prediction over twin critic networks:
-$$y_t = r_t + \gamma \left( \min_{j=1, 2} Q_{\bar{\phi}_j}(s_{t+1}, a_{t+1}) - \alpha \log \pi_\theta(a_{t+1} \mid s_{t+1}) \right)$$
-
----
-
-## Curriculum Strategy
-
-Training deformable manipulation directly from scratch results in exploratory collapse. We implement an automated pacing schedule $\lambda(t) \in [0, 1]$:
-
-```
-[ Stage 1: Lateral Bézier Folding ]
-  Level 1 (lambda = 0.00): Pure nominal cubic Bézier trajectory (baseline).
-  Level 2 (lambda = 0.25): Narrow residual envelope (+-2 cm perturbation).
-  Level 3 (lambda = 0.50): Intermediate velocity & pose adaptation.
-  Level 4 (lambda = 0.75): Extended search with cloth settling delays.
-  Level 5 (lambda = 1.00): Fully unconstrained continuous residual control.
-
-                  | (Success Rate > 85% & Alignment Error < 3 cm)
-                  v
-[ Stage 2: Dual-Layer Waist Lift & Gravity Drape ]
-  Level 1: Fixed 44-particle waistband grasp at 25° spatula approach.
-  Level 2: C^2 quintic elevation to apex Z_apex = 0.701 m.
-  Level 3: Passive aerodynamic damping window (tau in [0.35, 0.50]).
-  Level 4: Longitudinal drape onto table with hem alignment (||p_l - p_r|| < 4 cm).
-```
-
----
-
-## Experimental Results
-
-### Quantitative Summary
-* **Stage 1 Convergence:** Reached $> 88\%$ fold completion rate across 500 episodes with Chamfer metric $< 0.024\,\text{m}$.
-* **Stage 2 Alignment:** Reduced leg-to-leg distance deviation from $0.142\,\text{m}$ (open baseline) to $\mathbf{0.031\,\text{m}}$ (trained SAC policy).
-* **Checkpoints:** Optimal weights preserved in `checkpoints/sac_best_stage1.pt` and `checkpoints/sac_best_stage2.pt`.
-
-### Evaluation Videos
-Comparative evaluation clips are available in `videos/`:
-* `stage_1_nominal_baseline.mp4` vs. `stage_1_sac_best_attempt.mp4`
-* `stage_2_nominal_baseline.mp4` vs. `stage_2_sac_best_attempt.mp4`
-
----
-
-## Repository Structure
+## 📁 Estructura del Repositorio
 
 ```text
 sac_curriculum_cloth_folding/
-├── .gitignore
-├── README.md                                 <- Master documentation
+├── README.md                                 <- Documentación general
+├── .gitignore                                <- Exclusiones de Git
 ├── docs/
-│   ├── sac_architecture.drawio              <- Editable network architecture diagram
-│   ├── generate_sac_drawio.py               <- Diagram generator script
-│   └── images/                               <- Training curves and evaluation plots
+│   ├── sac_architecture.drawio              <- Diagrama de arquitectura de red
+│   └── images/                               <- Gráficas de entrenamiento y convergencia
 ├── configs/
-│   ├── training_params.yaml                  <- SAC hyperparameters & pacing rates
-│   └── canonical_keypoint_poses.json         <- FoldNet trousers reference keypoints
+│   ├── training_params.yaml                  <- Hiperparámetros de SAC y del currículo
+│   └── canonical_keypoint_poses.json         <- Posiciones canónicas de keypoints
 ├── src/
 │   ├── callbacks/
-│   │   ├── curriculum_callback.py            <- Automated stage promotion logic
-│   │   └── __init__.py
+│   │   └── curriculum_callback.py            <- Lógica de promoción curricular
 │   ├── envs/
-│   │   ├── dynamic_folding_env.py            <- Gymnasium environment wrapper
-│   │   ├── cloth_genesis_backend.py          <- Genesis World XPBD physics interface
-│   │   ├── bezier_geometry.py                <- C^2 minimum-jerk trajectory generator
-│   │   ├── measure_corner_fold.py            <- Chamfer & geometric metrics
-│   │   └── __init__.py
+│   │   ├── dynamic_folding_env.py            <- Entorno Gymnasium
+│   │   ├── cloth_genesis_backend.py          <- Interfaz de física XPBD Genesis
+│   │   ├── bezier_geometry.py                <- Trayectorias Bézier C^2
+│   │   └── measure_corner_fold.py            <- Evaluación de alineación y pliegue
 │   ├── models/
-│   │   ├── sac_policy.py                     <- PyTorch GaussianActor, TwinCritic, Buffer
-│   │   └── __init__.py
+│   │   └── sac_policy.py                     <- Implementación SAC en PyTorch
 │   └── scripts/
-│       ├── 01_verify_environment.py          <- Pre-flight environment sanity check
-│       ├── 02_train_sac_curriculum.py        <- Main curriculum training loop
-│       ├── 03_eval_policy.py                 <- Quantitative evaluation script
-│       ├── 04_demo_parallel_4envs.py         <- Parallel GPU multi-env demo
-│       ├── record_policy_video.py            <- MP4 video recorder
-│       └── generate_dashboard.py             <- HTML/Markdown training dashboard
-├── checkpoints/                              <- Converged model weights (.pt) and JSON traces
-├── eval_reports/                             <- Quantitative JSON evaluation logs
-└── videos/                                   <- Side-by-side MP4 evaluation recordings
+│       ├── 01_verify_environment.py          <- Smoke test del simulador y GPU
+│       ├── 02_train_sac_curriculum.py        <- Bucle de entrenamiento con currículo
+│       ├── 03_eval_policy.py                 <- Evaluación de checkpoints guardados
+│       └── record_policy_video.py            <- Grabación de MP4
+├── checkpoints/                              <- Pesos entrenados (.pt) y trazas JSON
+├── eval_reports/                             <- Informes de evaluación en JSON
+└── videos/                                   <- Vídeos MP4 de evaluación
 ```
 
 ---
 
-## Execution Guide
+## 🚀 Guía Rápida de Ejecución
 
-### 1. Requirements
-* Python 3.10+
-* PyTorch 2.4+ with CUDA support
-* Genesis World (`genesis-world>=0.3.13` or `1.4.0`)
-* Gymnasium
-
+### 1. Dependencias
 ```bash
 pip install torch torchvision gymnasium pyyaml matplotlib scipy
 ```
+*Requiere tener instalado Genesis World (`genesis-world`).*
 
-### 2. Verify Simulation Environment
-Confirm GPU physics, CUDA memory bounds, and XPBD substepping:
+### 2. Verificar el Simulador y la GPU
 ```bash
 python src/scripts/01_verify_environment.py
 ```
 
-### 3. Launch Curriculum Training
-Train the SAC agent through the automated difficulty levels:
+### 3. Entrenar la Política con Currículo
 ```bash
 python src/scripts/02_train_sac_curriculum.py --config configs/training_params.yaml
 ```
 
-### 4. Evaluate Checkpoints & Record Videos
-Evaluate policy performance against nominal baselines:
+### 4. Evaluar Checkpoints Entrenados
 ```bash
 python src/scripts/03_eval_policy.py --checkpoint checkpoints/sac_best_stage1.pt
-python src/scripts/record_policy_video.py --checkpoint checkpoints/sac_best_stage1.pt
 ```
 
 ---
 
-## References
-
-* Haarnoja, T., Zhou, A., Abbeel, P., & Levine, S. (2018). *Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor*. ICML 2018.
-* Wang, X., Chen, Y., & Zhu, W. (2021). *A Survey on Curriculum Learning*. IEEE TPAMI.
+## 📚 Referencias
+* Haarnoja, T., et al. (2018). *Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor*. ICML.
+* Wang, X., et al. (2021). *A Survey on Curriculum Learning*. IEEE TPAMI.
 * Li, et al. (2025). *Dynamic Cloth Folding with Curriculum*.
